@@ -12,7 +12,7 @@ import scala.util.Try
 
 object CsvInventoryLoader:
 
-  implicit val showDecoder: CsvRowDecoder[Show, String] = CsvRowDecoder.instance { row =>
+  given showDecoder: CsvRowDecoder[Show, String] = CsvRowDecoder.instance { row =>
     for {
       title <- row.as[String]("title")
       dateStr <- row.as[String]("opening")
@@ -28,7 +28,7 @@ object CsvInventoryLoader:
     } yield Show(title, date, genre)
   }
 
-  def load[F[_]: Async](path: String): F[Inventory] =
+  def load[F[_]: Async](path: String): F[Map[String, Show]] =
     val inputStream = Sync[F].blocking(getClass.getClassLoader.getResourceAsStream(path))
 
     readInputStream(inputStream, 4096)
@@ -36,4 +36,6 @@ object CsvInventoryLoader:
       .through(decodeUsingHeaders[Show]())
       .compile
       .toList
-      .map(shows => Inventory(shows))
+      .map { list =>
+        list.map(show => show.title -> show).toMap
+      }

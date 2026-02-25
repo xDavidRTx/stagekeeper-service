@@ -1,6 +1,6 @@
 package tickets4sale.stagekeeper.domain
 
-import io.circe.{Codec, Decoder, Encoder}
+import io.circe.{Decoder, Encoder}
 
 import java.time.LocalDate
 
@@ -8,16 +8,15 @@ final case class OrderRequest(
     show: String,
     performance_date: LocalDate,
     tickets: Int
-) derives Codec
+) derives Decoder
 
 final case class OrderResponse(
     status: String,
     show: String,
     performance_date: LocalDate,
-    tickets_bought: Option[Int] = None,
-    tickets_available: Option[Int] = None,
-    message: Option[String] = None
-)
+    tickets_bought: Int,
+    tickets_available: Int
+) derives Encoder
 
-object OrderResponse:
-  given Encoder[OrderResponse] = Encoder.derived[OrderResponse].mapJson(_.dropNullValues)
+final case class FailedOrderResponse(status: String, show: String, performance_date: LocalDate, message: String)
+    derives Encoder

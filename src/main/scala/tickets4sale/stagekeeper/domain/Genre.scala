@@ -8,7 +8,7 @@ object Genre:
     case "musical" => Right(Genre.Musical)
     case "comedy"  => Right(Genre.Comedy)
     case "drama"   => Right(Genre.Drama)
-    case other     => Left(s"Unknown genre: $other")
+    case other     => Left(s"An unknown genre: $other")
 
   def basePrice(genre: Genre): Int =
     genre match

@@ -28,7 +28,7 @@ Considering the following inventory:
 
 | Title            | Opening day | Genre   |
 | :--------------- | :---------- | :------ |
-| Cats             | 2023-01-01  | musical |
+| CATS             | 2023-01-01  | musical |
 | Comedy of Errors | 2023-07-01  | comedy  |
 | Everyman         | 2023-08-01  | drama   |
 
@@ -74,7 +74,7 @@ The request must be a JSON object containing the show title, the target date, an
 
 ```json
 {
-  "show": "Cats",
+  "show": "CATS",
   "performance_date": "2026-01-01",
   "tickets": 10
 }
@@ -90,7 +90,7 @@ Body:
 ```json
 {
    "status": "success",
-   "show": "Cats",
+   "show": "CATS",
    "performance_date": "2026-01-01",
    "tickets_bought": 10,
    "tickets_available": 90
@@ -107,7 +107,7 @@ Body:
 ```json
 {
    "status": "failure",
-   "show": "Cats",
+   "show": "CATS",
    "performance_date": "2026-01-01",
    "message": "Ordered 10 tickets, but only 5 available"
 }

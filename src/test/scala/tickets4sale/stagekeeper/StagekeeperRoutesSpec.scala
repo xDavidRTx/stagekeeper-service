@@ -18,10 +18,10 @@ class StagekeeperRoutesSpec extends CatsEffectSuite:
 
   private val openingDay = LocalDate.of(2026, 1, 1)
   private val testShow = Show("Cats", openingDay, Genre.Musical)
-  private val inventory = Inventory(List(testShow))
+  private val shows = Map(testShow.title -> testShow)
 
   private val routesIO = for {
-    service <- InventoryService.create[IO](inventory)
+    service <- InventoryService.create[IO](shows)
   } yield StagekeeperRoutes.routes[IO](service).orNotFound
 
   test("GET /inventory/{date} returns exact expected JSON structure") {

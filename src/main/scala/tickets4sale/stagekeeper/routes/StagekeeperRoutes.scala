@@ -1,6 +1,5 @@
 package tickets4sale.stagekeeper.routes
 
-import cats.data.OptionT
 import cats.effect.Concurrent
 import cats.syntax.all.*
 import org.http4s.circe.CirceEntityDecoder.*
@@ -31,15 +30,16 @@ object StagekeeperRoutes:
           }
           .flatMap {
             case Some(resp) => resp.pure[F]
-            case None       => OptionT.none[F, Response[F]].value.map(_.getOrElse(Response(Status.NotFound)))
+            case None       => Response(Status.NotFound).pure[F]
           }
       case req @ POST -> Root / "inventory" / "order" =>
         for
           orderReq <- req.as[OrderRequest]
           result <- service.sellTickets(orderReq)
           response <- result match
-            case Right(success)                                                   => Ok(success)
-            case Left(failure) if failure.message.exists(_.contains("not found")) => NotFound(failure)
-            case Left(failure)                                                    => BadRequest(failure)
+            case Right(success) => Ok(success)
+            // This is not clever but due to time constraints I will not return and convert a specific error
+            case Left(failure) if failure.message.contains("not found") => NotFound(failure)
+            case Left(failure)                                          => BadRequest(failure)
         yield response
     }
