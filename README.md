@@ -34,7 +34,7 @@ Considering the following inventory:
 
 **Request**
 ```http
-curl -X GET "http://127.0.0.1:8080/inventory/2026-02-15" -H "accept: application/json"
+curl -X GET "http://127.0.0.1:8080/inventory/2026-08-15" -H "accept: application/json"
 ```
 
 **Response**
@@ -74,8 +74,8 @@ The request must be a JSON object containing the show title, the target date, an
 
 ```json
 {
-  "show": "Cats",
-  "performance_date": "2026-01-01",
+  "show": "Everyman",
+  "performance_date": "2023-01-01",
   "tickets": 10
 }
 ```
@@ -90,8 +90,8 @@ Body:
 ```json
 {
    "status": "success",
-   "show": "Cats",
-   "performance_date": "2026-01-01",
+   "show": "Everyman",
+   "performance_date": "2023-08-15",
    "tickets_bought": 10,
    "tickets_available": 90
 }
@@ -107,8 +107,8 @@ Body:
 ```json
 {
    "status": "failure",
-   "show": "Cats",
-   "performance_date": "2026-01-01",
+   "show": "Everyman",
+   "performance_date": "2023-08-15",
    "message": "Ordered 10 tickets, but only 5 available"
 }
 ```
@@ -124,7 +124,7 @@ Body:
 {
   "status": "failure",
   "show": "Unknown Show",
-  "performance_date": "2026-01-01",
+  "performance_date": "2023-08-15",
   "message": "Show not found"
 }
 ```
@@ -134,8 +134,8 @@ Body:
 curl -X POST "http://localhost:8080/inventory/order" \
      -H "Content-Type: application/json" \
      -d '{
-       "show": "Phantom of the Opera",
-       "performance_date": "2026-01-01",
-       "tickets": 5
+       "show": "Everyman",
+       "performance_date": "2023-08-15",
+       "tickets": 10
      }'
 ```
