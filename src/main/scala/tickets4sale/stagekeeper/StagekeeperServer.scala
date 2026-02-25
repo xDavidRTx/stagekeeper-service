@@ -6,8 +6,7 @@ import fs2.io.net.Network
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits.*
 import tickets4sale.stagekeeper.routes.StagekeeperRoutes
-import tickets4sale.stagekeeper.services.CsvInventoryLoader
-import tickets4sale.stagekeeper.services.InventoryService
+import tickets4sale.stagekeeper.services.{CsvInventoryLoader, InventoryService}
 
 object StagekeeperServer:
 

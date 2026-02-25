@@ -3,6 +3,7 @@ package tickets4sale.stagekeeper.services
 import cats.effect.{Ref, Sync}
 import cats.syntax.all.*
 import tickets4sale.stagekeeper.domain.*
+
 import java.time.LocalDate
 
 class InventoryService[F[_]: Sync](inventory: Inventory, sales: Ref[F, Map[(Show, LocalDate), Int]]):
@@ -31,6 +32,38 @@ class InventoryService[F[_]: Sync](inventory: Inventory, sales: Ref[F, Map[(Show
 
       InventoryResponse(groups)
     }
+
+  def sellTickets(req: OrderRequest): F[Either[OrderResponse, OrderResponse]] =
+    val maybeShow = inventory.shows.find(_.title.equalsIgnoreCase(req.show))
+
+    maybeShow match
+      case None =>
+        Left(OrderResponse("failure", req.show, req.performance_date, message = Some("Show not found"))).pure[F]
+
+      case Some(show) =>
+        sales.modify { currentSales =>
+          val soldSoFar = currentSales.getOrElse((show, req.performance_date), 0)
+          val available = 100 - soldSoFar
+
+          if req.tickets <= available then
+            val newSales = currentSales + ((show, req.performance_date) -> (soldSoFar + req.tickets))
+            val success = OrderResponse(
+              "success",
+              show.title,
+              req.performance_date,
+              Some(req.tickets),
+              Some(available - req.tickets)
+            )
+            (newSales, Right(success))
+          else
+            val failure = OrderResponse(
+              "failure",
+              show.title,
+              req.performance_date,
+              message = Some(s"Ordered ${req.tickets} tickets, but only $available available")
+            )
+            (currentSales, Left(failure))
+        }
 
 object InventoryService:
   def create[F[_]: Sync](inventory: Inventory): F[InventoryService[F]] =

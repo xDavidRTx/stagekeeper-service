@@ -2,16 +2,17 @@ package tickets4sale.stagekeeper
 
 import cats.effect.IO
 import io.circe.Json
-import org.http4s.*
-import org.http4s.implicits.*
 import io.circe.parser.parse
-import org.http4s.circe.CirceEntityDecoder.*
 import munit.CatsEffectSuite
+import org.http4s.*
+import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
+import org.http4s.circe.CirceEntityDecoder.*
+import org.http4s.implicits.*
 import tickets4sale.stagekeeper.domain.*
+import tickets4sale.stagekeeper.routes.StagekeeperRoutes
 import tickets4sale.stagekeeper.services.InventoryService
 
 import java.time.LocalDate
-import tickets4sale.stagekeeper.routes.StagekeeperRoutes
 
 class StagekeeperRoutesSpec extends CatsEffectSuite:
 
@@ -19,7 +20,7 @@ class StagekeeperRoutesSpec extends CatsEffectSuite:
   private val testShow = Show("Cats", openingDay, Genre.Musical)
   private val inventory = Inventory(List(testShow))
 
-  private val routes = for {
+  private val routesIO = for {
     service <- InventoryService.create[IO](inventory)
   } yield StagekeeperRoutes.routes[IO](service).orNotFound
 
@@ -45,7 +46,7 @@ class StagekeeperRoutesSpec extends CatsEffectSuite:
         }
       """
 
-    routes.flatMap(_.run(request)).flatMap { response =>
+    routesIO.flatMap(_.run(request)).flatMap { response =>
       assertEquals(response.status, Status.Ok)
 
       response.as[Json].map { actualJson =>
@@ -76,7 +77,7 @@ class StagekeeperRoutesSpec extends CatsEffectSuite:
       }
     """
 
-    routes.flatMap(_.run(request)).flatMap { response =>
+    routesIO.flatMap(_.run(request)).flatMap { response =>
       assertEquals(response.status, Status.Ok)
 
       response.as[Json].map { actualJson =>
@@ -94,7 +95,7 @@ class StagekeeperRoutesSpec extends CatsEffectSuite:
 
     val expectedJson = """{"inventory" : [] }"""
 
-    routes.flatMap(_.run(request)).flatMap { response =>
+    routesIO.flatMap(_.run(request)).flatMap { response =>
       assertEquals(response.status, Status.Ok)
 
       response.as[Json].map { actualJson =>
@@ -106,7 +107,112 @@ class StagekeeperRoutesSpec extends CatsEffectSuite:
   test("GET /inventory/{date} returns 404/Empty for malformed date.") {
     val request = Request[IO](Method.GET, uri"/inventory/not-a-date")
 
-    routes.flatMap(_.run(request)).map { response =>
+    routesIO.flatMap(_.run(request)).map { response =>
       assertEquals(response.status, Status.NotFound)
+    }
+  }
+
+  test("POST /inventory/order returns 400 when overbooking") {
+    val overbookJson =
+      """
+        {
+          "show": "Cats",
+          "performance_date": "2026-01-01",
+          "tickets": 101
+        }
+      """
+    val request = Request[IO](Method.POST, uri"/inventory/order")
+      .withEntity(parse(overbookJson).getOrElse(Json.Null))
+
+    routesIO.flatMap(_.run(request)).map { response =>
+      assertEquals(response.status, Status.BadRequest)
+    }
+  }
+
+  test("POST /inventory/order - success updates tickets_available") {
+    val orderJson =
+      """
+      {
+        "show": "Cats",
+        "performance_date": "2026-01-01",
+        "tickets": 10
+      }
+    """
+
+    val expectedResponse =
+      """
+      {
+        "status": "success",
+        "show": "Cats",
+        "performance_date": "2026-01-01",
+        "tickets_bought": 10,
+        "tickets_available": 90
+      }
+    """
+
+    val request = Request[IO](Method.POST, uri"/inventory/order")
+      .withEntity(parse(orderJson).getOrElse(Json.Null))
+
+    routesIO.flatMap(_.run(request)).flatMap { response =>
+      assertEquals(response.status, Status.Ok)
+      response.as[Json].map { actualJson =>
+        assertEquals(actualJson, parse(expectedResponse).getOrElse(Json.Null))
+      }
+    }
+  }
+
+  test("POST /inventory/order - returns 404 for non-existent show") {
+    val ghostShowJson =
+      """
+      {
+        "show": "The Phantom Show",
+        "performance_date": "2026-01-01",
+        "tickets": 5
+      }
+    """
+
+    val request = Request[IO](Method.POST, uri"/inventory/order")
+      .withEntity(parse(ghostShowJson).getOrElse(Json.Null))
+
+    routesIO.flatMap(_.run(request)).map { response =>
+      assertEquals(response.status, Status.NotFound)
+    }
+  }
+
+  test("Sale via POST reduces tickets available in GET overview") {
+    val showTitle = "Cats"
+    val date = "2026-01-01"
+
+    val buyTicketsJson =
+      s"""
+      {
+        "show": "$showTitle",
+        "performance_date": "$date",
+        "tickets": 20
+      }
+    """
+
+    for {
+      routes <- routesIO
+
+      buyReq = Request[IO](Method.POST, uri"/inventory/order")
+        .withEntity(parse(buyTicketsJson).getOrElse(Json.Null))
+      _ <- routes.run(buyReq)
+
+      getReq = Request[IO](Method.GET, Uri.unsafeFromString(s"/inventory/$date"))
+      getResponse <- routes.run(getReq)
+      inventoryJson <- getResponse.as[io.circe.Json]
+
+      ticketsRemaining = inventoryJson.hcursor
+        .downField("inventory")
+        .downArray
+        .downField("shows")
+        .downArray
+        .downField("tickets_available")
+        .as[Int]
+        .getOrElse(0)
+
+    } yield {
+      assertEquals(ticketsRemaining, 80)
     }
   }

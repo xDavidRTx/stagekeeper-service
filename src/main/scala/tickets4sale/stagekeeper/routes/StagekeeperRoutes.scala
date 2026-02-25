@@ -1,33 +1,45 @@
 package tickets4sale.stagekeeper.routes
 
 import cats.data.OptionT
+import cats.effect.Concurrent
 import cats.syntax.all.*
-import cats.effect.Sync
-import org.http4s.{HttpRoutes, Response, Status}
-import org.http4s.dsl.Http4sDsl
+import org.http4s.circe.CirceEntityDecoder.*
 import org.http4s.circe.CirceEntityEncoder.*
+import org.http4s.dsl.Http4sDsl
+import org.http4s.{HttpRoutes, Response, Status}
+import tickets4sale.stagekeeper.domain.OrderRequest
 import tickets4sale.stagekeeper.services.InventoryService
 
 import java.time.LocalDate
 import scala.util.Try
 
 object StagekeeperRoutes:
-  def routes[F[_]: Sync](service: InventoryService[F]): HttpRoutes[F] =
+  def routes[F[_]: Concurrent](service: InventoryService[F]): HttpRoutes[F] =
     val dsl = new Http4sDsl[F] {}
     import dsl.*
 
-    HttpRoutes.of[F] { case GET -> Root / "inventory" / dateStr =>
-      val maybeDate = Try(LocalDate.parse(dateStr)).toOption
+    HttpRoutes.of[F] {
+      case GET -> Root / "inventory" / dateStr =>
+        val maybeDate = Try(LocalDate.parse(dateStr)).toOption
 
-      maybeDate
-        .traverse { date =>
-          for
-            response <- service.getAvailability(date)
-            result <- Ok(response)
-          yield result
-        }
-        .flatMap {
-          case Some(resp) => resp.pure[F]
-          case None       => OptionT.none[F, Response[F]].value.map(_.getOrElse(Response(Status.NotFound)))
-        }
+        maybeDate
+          .traverse { date =>
+            for
+              response <- service.getAvailability(date)
+              result <- Ok(response)
+            yield result
+          }
+          .flatMap {
+            case Some(resp) => resp.pure[F]
+            case None       => OptionT.none[F, Response[F]].value.map(_.getOrElse(Response(Status.NotFound)))
+          }
+      case req @ POST -> Root / "inventory" / "order" =>
+        for
+          orderReq <- req.as[OrderRequest]
+          result <- service.sellTickets(orderReq)
+          response <- result match
+            case Right(success)                                                   => Ok(success)
+            case Left(failure) if failure.message.exists(_.contains("not found")) => NotFound(failure)
+            case Left(failure)                                                    => BadRequest(failure)
+        yield response
     }
