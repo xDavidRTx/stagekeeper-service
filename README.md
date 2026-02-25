@@ -75,7 +75,7 @@ The request must be a JSON object containing the show title, the target date, an
 ```json
 {
   "show": "Everyman",
-  "performance_date": "2023-01-01",
+  "performance_date": "2023-08-15",
   "tickets": 10
 }
 ```
