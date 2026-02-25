@@ -137,4 +137,5 @@ curl -X POST "http://localhost:8080/inventory/order" \
        "show": "Phantom of the Opera",
        "performance_date": "2026-01-01",
        "tickets": 5
-     }'```
+     }'
+```
